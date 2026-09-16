@@ -14,10 +14,12 @@ airline-route-optimization/
 │   ├── data_prep.py          # Step 1: load, clean, compute haversine distances
 │   ├── graph_builder.py      # Step 2: build the directed NetworkX graph
 │   ├── shortest_path.py      # Step 3: Dijkstra shortest-route solver
-│   └── mst_builder.py        # Step 4: minimum spanning tree over a chosen airport set
-├── outputs/                  # Generated CSVs / graph files land here
+│   ├── mst_builder.py        # Step 4: minimum spanning tree over a chosen airport set
+│   └── network_stats.py      # Step 6: network summary statistics
+├── outputs/                  # Generated CSVs / graph files / reports land here
 ├── notebooks/                # (optional) exploratory notebooks
 ├── main.py                   # Runs Steps 1-3 end-to-end
+├── app.py                    # Step 7: Streamlit demo
 ├── requirements.txt
 └── README.md
 ```
@@ -54,7 +56,22 @@ python src/shortest_path.py COK IXC
 # Step 4 - minimum spanning tree over a set of airports
 python src/mst_builder.py                              # default: major Indian metros
 python src/mst_builder.py DEL JFK LHR CDG DXB SIN       # custom set via CLI args
+
+# Step 6 - network summary statistics (writes outputs/network_summary.md + .json)
+python src/network_stats.py
 ```
+
+## How to Run the Streamlit Demo
+
+The Streamlit app's sidebar reads precomputed stats from
+`outputs/network_summary.json`, so run Step 6 first:
+
+```bash
+python src/network_stats.py
+streamlit run app.py
+```
+
+This opens automatically in your browser at `http://localhost:8501`.
 
 ## What Each Step Does
 
@@ -85,6 +102,22 @@ distance (through the full network) as each pairwise edge weight, then
 runs Kruskal's algorithm on that complete graph. Reports each MST edge,
 whether it's a direct route or routed via an intermediate airport, and
 skips/warns on invalid or unreachable codes. Saves `outputs/mst_result.gml`.
+
+**Step 6 — `network_stats.py`**
+Computes network-wide summary statistics by reusing `graph_builder.build_graph()`
+directly (no recomputation of graph structure): airport/route/airline
+counts, top hubs by total/in/out-degree, country coverage, route-distance
+distribution, most-connected city pairs, and weakly/strongly connected
+component counts. Writes a human-readable `outputs/network_summary.md`
+report and a machine-readable `outputs/network_summary.json` (consumed by
+the Streamlit app's sidebar).
+
+**Step 7 — `app.py`**
+A three-part Streamlit demo: a shortest-path finder (dropdowns + Plotly
+map), an MST builder over a multi-selected set of airports (defaults to
+the Step 4 airport set), and a sidebar of the Step 6 network statistics
+with a route-distance histogram. The route graph is built once per
+session via `@st.cache_resource`.
 
 ## Notes / Gotchas
 
