@@ -8,12 +8,13 @@ OpenFlights global airport/route dataset.
 ```
 airline-route-optimization/
 ├── data/
-│   ├── airports.dat          # OpenFlights airports table (you provide this)
-│   └── routes.dat            # OpenFlights routes table (you provide this)
+│   ├── airports.dat          # OpenFlights airports table
+│   └── routes.dat            # OpenFlights routes table
 ├── src/
 │   ├── data_prep.py          # Step 1: load, clean, compute haversine distances
 │   ├── graph_builder.py      # Step 2: build the directed NetworkX graph
-│   └── shortest_path.py      # Step 3: Dijkstra shortest-route solver
+│   ├── shortest_path.py      # Step 3: Dijkstra shortest-route solver
+│   └── mst_builder.py        # Step 4: minimum spanning tree over a chosen airport set
 ├── outputs/                  # Generated CSVs / graph files land here
 ├── notebooks/                # (optional) exploratory notebooks
 ├── main.py                   # Runs Steps 1-3 end-to-end
@@ -24,7 +25,6 @@ airline-route-optimization/
 ## Setup
 
 ```bash
-# from the project root
 pip install -r requirements.txt
 ```
 
@@ -33,11 +33,10 @@ Place your `airports.dat` and `routes.dat` files inside the `data/` folder
 
 ## Running
 
-**Run everything (Steps 1-3) with one command:**
+**Run Steps 1-3 with one command:**
 ```bash
 python main.py DEL JFK
 ```
-(Origin/destination default to `DEL JFK` if omitted.)
 
 **Or run each step individually, from the project root:**
 
@@ -51,6 +50,10 @@ python src/graph_builder.py
 # Step 3 - shortest path between two airports (IATA codes)
 python src/shortest_path.py BLR SFO
 python src/shortest_path.py COK IXC
+
+# Step 4 - minimum spanning tree over a set of airports
+python src/mst_builder.py                              # default: major Indian metros
+python src/mst_builder.py DEL JFK LHR CDG DXB SIN       # custom set via CLI args
 ```
 
 ## What Each Step Does
@@ -73,27 +76,31 @@ Runs Dijkstra's algorithm between a chosen origin/destination IATA code
 pair, returning the full path, total distance, hop count, and a
 leg-by-leg breakdown (including which airlines fly each leg).
 
+**Step 4 — `mst_builder.py`**
+Takes a set of airports (default: major Indian metros, or pass your own
+via CLI args) and finds the minimum-cost set of links connecting all of
+them. Since a direct route may not exist between every pair, it first
+builds a complete graph over just the chosen airports using shortest-path
+distance (through the full network) as each pairwise edge weight, then
+runs Kruskal's algorithm on that complete graph. Reports each MST edge,
+whether it's a direct route or routed via an intermediate airport, and
+skips/warns on invalid or unreachable codes. Saves `outputs/mst_result.gml`.
+
 ## Notes / Gotchas
 
-- **Airports without an IATA code or coordinates are dropped** — this
-  removes a small number of unlinked airports but keeps every route that
-  matters.
+- **Airports without an IATA code or coordinates are dropped.**
 - **Distance is airline-independent** — multiple airlines flying the same
-  src→dst pair are collapsed into a single graph edge; distance is the
-  same regardless of carrier, so we keep it once and just count airlines.
-- **The graph is directed** — a route from A→B doesn't guarantee B→A
-  exists in the data (though in practice most do). `shortest_path.py`
-  respects this directionality.
+  src→dst pair are collapsed into a single graph edge.
+- **The graph is directed** — `shortest_path.py` respects this.
 - If `shortest_path.py` raises `NetworkXNoPath`, the two airports fall in
-  different weakly-connected components (see Step 2 stats — about 53% of
-  airports are in the single largest component; small regional airports
-  can be isolated).
+  different weakly-connected components (~53% of airports are in the
+  single largest component).
+- `mst_builder.py` builds an *undirected* complete graph over the chosen
+  subset since MST is inherently undirected — pairwise weights use the
+  shortest directed path distance in either direction.
 
-## Next Steps (Step 4 onward)
+## Next Steps
 
-- `src/mst_builder.py` — minimal spanning tree over a user-chosen airport
-  subset (e.g. Indian metros), using shortest-path distances as edge
-  weights for pairs without a direct route.
 - `src/max_flow.py` (stretch) — max-flow between two hubs using
   `n_airlines` as a capacity proxy.
 - `app.py` — Streamlit demo with map visualization (Plotly/Folium).
