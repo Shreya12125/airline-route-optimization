@@ -45,6 +45,9 @@ def build_graph(airports_df, routes_df) -> nx.DiGraph:
             weight=row["distance_km"],
             distance_km=row["distance_km"],
             n_airlines=row["n_airlines"],
+            # alias for nx.maximum_flow, which defaults to a "capacity" key
+            # and treats a missing key as infinite capacity (Step 5)
+            capacity=row["n_airlines"],
         )
 
     return G
