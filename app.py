@@ -49,9 +49,46 @@ def get_airport_options(_G):
     return sorted(options, key=lambda x: x[1])
 
 
+@st.cache_resource
+def get_country_boundaries():
+    """
+    Loads bundled country outlines (assets/world_countries.geo.json) instead
+    of relying on Plotly's built-in basemap, which fetches topojson from
+    cdn.plot.ly at runtime and silently fails to render on a restricted or
+    flaky network. Returns (lons, lats) ready for a single Scattergeo line
+    trace, with None gaps separating each polygon ring.
+    """
+    path = os.path.join(os.path.dirname(__file__), "assets", "world_countries.geo.json")
+    with open(path, encoding="utf-8") as f:
+        geojson = json.load(f)
+
+    lons, lats = [], []
+    for feature in geojson["features"]:
+        geom = feature["geometry"]
+        polygons = geom["coordinates"] if geom["type"] == "MultiPolygon" else [geom["coordinates"]]
+        for polygon in polygons:
+            for ring in polygon:
+                for lon, lat in ring:
+                    lons.append(lon)
+                    lats.append(lat)
+                lons.append(None)
+                lats.append(None)
+    return lons, lats
+
+
 def airport_map_figure(nodes: list, edges: list, G: nx.DiGraph, title: str) -> go.Figure:
     """nodes: list of IATA codes in visual order. edges: list of (u, v) pairs to draw."""
     fig = go.Figure()
+
+    country_lons, country_lats = get_country_boundaries()
+    fig.add_trace(go.Scattergeo(
+        lon=country_lons,
+        lat=country_lats,
+        mode="lines",
+        line=dict(width=0.5, color="rgb(180, 190, 200)"),
+        showlegend=False,
+        hoverinfo="skip",
+    ))
 
     for u, v in edges:
         fig.add_trace(go.Scattergeo(
@@ -79,18 +116,17 @@ def airport_map_figure(nodes: list, edges: list, G: nx.DiGraph, title: str) -> g
         title=title,
         geo=dict(
             # showland/showcountries/showcoastlines/showframe all trigger a
-            # runtime fetch of world topojson from cdn.plot.ly - disabled so
-            # the map still renders with no (or restricted) internet access.
-            # Lon/lat gridlines below are computed client-side (no fetch)
-            # and stand in for a basemap.
+            # runtime fetch of world topojson from cdn.plot.ly, which silently
+            # fails to render on a restricted/flaky network. Real country
+            # outlines are drawn instead from the bundled geojson trace added
+            # above (get_country_boundaries()) - no network dependency.
             projection_type="natural earth",
             showland=False,
             showcountries=False,
             showcoastlines=False,
             showframe=False,
+            showocean=False,
             bgcolor="rgb(235, 242, 250)",
-            lonaxis=dict(showgrid=True, gridcolor="rgb(200, 210, 220)", gridwidth=0.5, dtick=30),
-            lataxis=dict(showgrid=True, gridcolor="rgb(200, 210, 220)", gridwidth=0.5, dtick=30),
         ),
         margin=dict(l=0, r=0, t=40, b=0),
         height=500,

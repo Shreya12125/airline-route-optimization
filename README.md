@@ -19,6 +19,8 @@ airline-route-optimization/
 │   └── network_stats.py      # Step 6: network summary statistics
 ├── outputs/                  # Generated CSVs / graph files / reports land here
 ├── notebooks/                # (optional) exploratory notebooks
+├── assets/
+│   └── world_countries.geo.json  # bundled country outlines for app.py's maps
 ├── main.py                   # Runs Steps 1-3 end-to-end
 ├── app.py                    # Step 7: Streamlit demo
 ├── requirements.txt
@@ -119,7 +121,12 @@ A Streamlit demo with three tabs plus a sidebar: a shortest-path finder
 airports (defaults to the Step 4 airport set), a max-flow tab (defaults
 to the Step 5 source/target pair, with the capacity-proxy caveat shown
 up front), and a sidebar of the Step 6 network statistics with a
-route-distance histogram. The route graph is built once per session via
+route-distance histogram. Route maps draw country outlines from a
+bundled local file (`assets/world_countries.geo.json`) instead of
+Plotly's built-in basemap, which fetches from an external CDN at
+runtime and silently fails to render if that's unreachable - so the
+maps always work, even offline. The route graph is built once per
+session via
 `@st.cache_resource`.
 
 ## Notes / Gotchas
