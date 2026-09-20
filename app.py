@@ -81,12 +81,16 @@ def airport_map_figure(nodes: list, edges: list, G: nx.DiGraph, title: str) -> g
             # showland/showcountries/showcoastlines/showframe all trigger a
             # runtime fetch of world topojson from cdn.plot.ly - disabled so
             # the map still renders with no (or restricted) internet access.
+            # Lon/lat gridlines below are computed client-side (no fetch)
+            # and stand in for a basemap.
             projection_type="natural earth",
             showland=False,
             showcountries=False,
             showcoastlines=False,
             showframe=False,
-            bgcolor="rgb(240, 240, 240)",
+            bgcolor="rgb(235, 242, 250)",
+            lonaxis=dict(showgrid=True, gridcolor="rgb(200, 210, 220)", gridwidth=0.5, dtick=30),
+            lataxis=dict(showgrid=True, gridcolor="rgb(200, 210, 220)", gridwidth=0.5, dtick=30),
         ),
         margin=dict(l=0, r=0, t=40, b=0),
         height=500,
