@@ -78,10 +78,15 @@ def airport_map_figure(nodes: list, edges: list, G: nx.DiGraph, title: str) -> g
     fig.update_layout(
         title=title,
         geo=dict(
+            # showland/showcountries/showcoastlines/showframe all trigger a
+            # runtime fetch of world topojson from cdn.plot.ly - disabled so
+            # the map still renders with no (or restricted) internet access.
             projection_type="natural earth",
-            showland=True,
-            landcolor="rgb(240, 240, 240)",
-            countrycolor="rgb(200, 200, 200)",
+            showland=False,
+            showcountries=False,
+            showcoastlines=False,
+            showframe=False,
+            bgcolor="rgb(240, 240, 240)",
         ),
         margin=dict(l=0, r=0, t=40, b=0),
         height=500,
