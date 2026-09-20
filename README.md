@@ -126,8 +126,7 @@ bundled local file (`assets/world_countries.geo.json`) instead of
 Plotly's built-in basemap, which fetches from an external CDN at
 runtime and silently fails to render if that's unreachable - so the
 maps always work, even offline. The route graph is built once per
-session via
-`@st.cache_resource`.
+session via `@st.cache_resource`.
 
 ## Notes / Gotchas
 
