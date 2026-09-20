@@ -15,6 +15,7 @@ airline-route-optimization/
 │   ├── graph_builder.py      # Step 2: build the directed NetworkX graph
 │   ├── shortest_path.py      # Step 3: Dijkstra shortest-route solver
 │   ├── mst_builder.py        # Step 4: minimum spanning tree over a chosen airport set
+│   ├── max_flow.py           # Step 5: max-flow between two hubs (optional stretch)
 │   └── network_stats.py      # Step 6: network summary statistics
 ├── outputs/                  # Generated CSVs / graph files / reports land here
 ├── notebooks/                # (optional) exploratory notebooks
@@ -113,11 +114,13 @@ report and a machine-readable `outputs/network_summary.json` (consumed by
 the Streamlit app's sidebar).
 
 **Step 7 — `app.py`**
-A three-part Streamlit demo: a shortest-path finder (dropdowns + Plotly
-map), an MST builder over a multi-selected set of airports (defaults to
-the Step 4 airport set), and a sidebar of the Step 6 network statistics
-with a route-distance histogram. The route graph is built once per
-session via `@st.cache_resource`.
+A Streamlit demo with three tabs plus a sidebar: a shortest-path finder
+(dropdowns + Plotly map), an MST builder over a multi-selected set of
+airports (defaults to the Step 4 airport set), a max-flow tab (defaults
+to the Step 5 source/target pair, with the capacity-proxy caveat shown
+up front), and a sidebar of the Step 6 network statistics with a
+route-distance histogram. The route graph is built once per session via
+`@st.cache_resource`.
 
 ## Notes / Gotchas
 
@@ -132,8 +135,16 @@ session via `@st.cache_resource`.
   subset since MST is inherently undirected — pairwise weights use the
   shortest directed path distance in either direction.
 
+**Step 5 — `max_flow.py`** *(optional stretch)*
+Computes maximum flow between a source/target airport pair (default
+`FRA -> JFK`) using `n_airlines` as a capacity proxy, aliased onto each
+edge's `capacity` attribute in `graph_builder.py` (`nx.maximum_flow`
+defaults to that key and treats a missing one as infinite capacity).
+Handles `NetworkXUnbounded`/`NetworkXNoPath` cleanly, prints the top 30
+nonzero-flow edges by amount, and saves the full result to
+`outputs/max_flow_result.json`. **Caveat:** airline count is a rough
+proxy, not a real seat/frequency figure — treat results as illustrative.
+
 ## Next Steps
 
-- `src/max_flow.py` (stretch) — max-flow between two hubs using
-  `n_airlines` as a capacity proxy.
-- `app.py` — Streamlit demo with map visualization (Plotly/Folium).
+- Step 8 write-up — not started.

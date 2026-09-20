@@ -23,6 +23,13 @@ from data_prep import load_clean_dataset
 from graph_builder import build_graph
 from shortest_path import shortest_route
 from mst_builder import DEFAULT_AIRPORTS, build_complete_subgraph, compute_mst
+from max_flow import DEFAULT_SOURCE, DEFAULT_TARGET, validate_airports, compute_max_flow
+
+MAX_FLOW_CAVEAT = (
+    "n_airlines (airline count) is a rough proxy for capacity, not a true "
+    "seat/frequency figure - OpenFlights has no real capacity field. Treat "
+    "this result as illustrative, not authoritative."
+)
 
 
 st.set_page_config(page_title="Airline Route Optimization", layout="wide")
@@ -86,10 +93,17 @@ G = get_graph()
 airport_options = get_airport_options(G)
 option_labels = [label for _, label in airport_options]
 label_to_iata = {label: iata for iata, label in airport_options}
+iata_to_label = {iata: label for iata, label in airport_options}
+
+
+def label_index(iata: str, fallback: int = 0) -> int:
+    label = iata_to_label.get(iata)
+    return option_labels.index(label) if label in option_labels else fallback
+
 
 st.title("Airline Route Network Optimization")
 
-tab1, tab2 = st.tabs(["Shortest Path", "Minimum Spanning Tree"])
+tab1, tab2, tab3 = st.tabs(["Shortest Path", "Minimum Spanning Tree", "Max Flow"])
 
 with tab1:
     st.header("Shortest Route Finder")
@@ -124,7 +138,7 @@ with tab1:
                 G,
                 f"{origin} -> {destination}",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         except ValueError as e:
             st.error(str(e))
         except nx.NetworkXNoPath:
@@ -181,9 +195,79 @@ with tab2:
             fig = airport_map_figure(
                 list(mst.nodes()), list(mst.edges()), G, "Minimum Spanning Tree"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.error("Not enough valid, connected airports to build an MST.")
+
+with tab3:
+    st.header("Maximum Flow")
+    st.info(MAX_FLOW_CAVEAT)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        source_label = st.selectbox(
+            "Source", option_labels, index=label_index(DEFAULT_SOURCE), key="mf_source"
+        )
+    with col2:
+        target_label = st.selectbox(
+            "Target", option_labels, index=label_index(DEFAULT_TARGET), key="mf_target"
+        )
+
+    if st.button("Compute Max Flow"):
+        source = label_to_iata[source_label]
+        target = label_to_iata[target_label]
+        try:
+            source, target = validate_airports(G, source, target)
+            flow_value, flow_dict = compute_max_flow(G, source, target)
+
+            st.success(f"Maximum flow {source} -> {target}: {flow_value:.0f} (airline-count units)")
+
+            nonzero = sorted(
+                (
+                    (u, v, flow)
+                    for u, targets in flow_dict.items()
+                    for v, flow in targets.items()
+                    if flow > 0
+                ),
+                key=lambda e: e[2], reverse=True,
+            )
+
+            if not nonzero:
+                st.warning(f"No flow-carrying path exists between {source} and {target}.")
+            else:
+                top_n = 30
+                st.subheader(f"Top {min(top_n, len(nonzero))} edges by flow (of {len(nonzero)} total)")
+                st.table([
+                    {
+                        "From": f"{u} ({G.nodes[u]['city']})",
+                        "To": f"{v} ({G.nodes[v]['city']})",
+                        "Flow": f"{flow:.0f}",
+                        "Capacity": G[u][v]["capacity"],
+                    }
+                    for u, v, flow in nonzero[:top_n]
+                ])
+                if len(nonzero) > top_n:
+                    st.caption(
+                        f"{len(nonzero) - top_n} more edges carry flow - run "
+                        "`python src/max_flow.py` for the full list "
+                        "(saved to outputs/max_flow_result.json)."
+                    )
+                fig = airport_map_figure(
+                    sorted({n for u, v, _ in nonzero[:top_n] for n in (u, v)}),
+                    [(u, v) for u, v, _ in nonzero[:top_n]],
+                    G,
+                    f"Max Flow {source} -> {target} (top {min(top_n, len(nonzero))} edges)",
+                )
+                st.plotly_chart(fig, width="stretch")
+        except ValueError as e:
+            st.error(str(e))
+        except nx.NetworkXUnbounded:
+            st.error(
+                f"Max flow {source} -> {target} is unbounded: at least one edge "
+                "on a path between them is missing a capacity value."
+            )
+        except nx.NetworkXNoPath:
+            st.warning(f"No route exists between {source} and {target}.")
 
 st.sidebar.header("Network Statistics")
 
@@ -214,4 +298,4 @@ else:
         xaxis_title="Distance (km)",
         yaxis_title="Routes",
     )
-    st.sidebar.plotly_chart(dist_fig, use_container_width=True)
+    st.sidebar.plotly_chart(dist_fig, width="stretch")
