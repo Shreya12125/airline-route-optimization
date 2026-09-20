@@ -44,8 +44,20 @@ def compute_max_flow(G: nx.DiGraph, source: str, target: str):
     aliased in graph_builder.py). Returns (flow_value, flow_dict).
     Raises nx.NetworkXUnbounded if any edge on a path lacks a capacity
     (this is a real possible outcome here, not just an edge case).
+
+    flow_func is pinned to edmonds_karp: the max flow VALUE is always
+    unique, but which specific edges carry flow is not, when several
+    equal-capacity paths exist (common here, lots of tied 1-2 airline
+    routes). The default preflow_push algorithm's tie-breaking depends
+    on Python's per-process hash randomization, so it returns a
+    different (equally valid) edge decomposition on every restart.
+    edmonds_karp is deterministic run to run - same input always gives
+    the same edge-by-edge breakdown, which matters for a reproducible
+    report/demo.
     """
-    flow_value, flow_dict = nx.maximum_flow(G, source, target, capacity="capacity")
+    flow_value, flow_dict = nx.maximum_flow(
+        G, source, target, capacity="capacity", flow_func=nx.algorithms.flow.edmonds_karp
+    )
     return flow_value, flow_dict
 
 
